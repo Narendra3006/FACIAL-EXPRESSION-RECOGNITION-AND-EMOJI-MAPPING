@@ -21,4 +21,5 @@ This project utilizes the FER 2013 dataset, a widely recognized benchmark for fa
 To demonstrate the practical applications of FER, I project implemented a real-time emoji mapping system using OpenCV. OpenCV is a powerful computer vision library that provides tools for capturing video streams, detecting faces, and extracting facial features.
 
 Here is a simple result:
+
 ![emoji_result](https://github.com/user-attachments/assets/eb3f756b-09ab-42e1-9765-8d8f4818bec9)
