@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Facial Expression Recognition using Convolutional Neural Networks for Emoji Mapping
 
 
@@ -23,3 +24,6 @@ To demonstrate the practical applications of FER, I project implemented a real-t
 Here is a simple result:
 
 ![emoji_result](https://github.com/user-attachments/assets/eb3f756b-09ab-42e1-9765-8d8f4818bec9)
+=======
+# FACIAL-EXPRESSION-RECOGNITION-AND-EMOJI-MAPPING
+>>>>>>> 8015af2cca1fb316840c2ece7afaadd7f229720c
