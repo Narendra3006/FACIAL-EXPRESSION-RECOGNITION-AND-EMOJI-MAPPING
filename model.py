@@ -1,30 +1,21 @@
-import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
-class EmojifyModel(nn.Module):
-    def __init__(self):
-        super(EmojifyModel, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, stride=1, padding=1)
-        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, stride=1, padding=1)
-        self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
-        self.flatten = nn.Flatten()
-        self.fc1 = nn.Linear(64 * 24 * 24, 64)
-        self.bn1 = nn.BatchNorm1d(64)
-        self.fc2 = nn.Linear(64, 32)
-        self.bn2 = nn.BatchNorm1d(32)
-        self.fc3 = nn.Linear(32, 7)
-        self.dropout = nn.Dropout(0.3)
-    
+class EmotionCNN(nn.Module):
+    def __init__(self, num_classes=7):
+        super(EmotionCNN, self).__init__()
+        self.conv1 = nn.Conv2d(1, 32, kernel_size=3, padding=1)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(32, 64, kernel_size=3, padding=1)
+        self.fc1 = nn.Linear(64 * 12 * 12, 128)
+        self.fc2 = nn.Linear(128, num_classes)
+        self.dropout = nn.Dropout(0.5)
+
     def forward(self, x):
-        x = torch.relu(self.conv1(x))
-        x = torch.relu(self.conv2(x))
-        x = self.pool(x)
-        x = self.flatten(x)
-        x = torch.relu(self.fc1(x))
-        x = self.bn1(x)
-        x = torch.relu(self.fc2(x))
-        x = self.dropout(x)
-        x = self.bn2(x)
-        x = torch.softmax(self.fc3(x), dim=1)
+        x = self.pool(F.relu(self.conv1(x)))  # Output: [32, 24, 24]
+        x = self.pool(F.relu(self.conv2(x)))  # Output: [64, 12, 12]
+        x = x.view(-1, 64 * 12 * 12)
+        x = F.relu(self.fc1(self.dropout(x)))
+        x = self.fc2(self.dropout(x))
         return x
 

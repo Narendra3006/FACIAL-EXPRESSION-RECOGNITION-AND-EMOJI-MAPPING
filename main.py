@@ -1,16 +1,10 @@
-from dataset import get_data_loaders
-from train import train
-from inference import video_emojify, load_model
+from inference import video_enojify, load_model
 
 def main():
-    train_loader, val_loader, emotions = get_data_loaders()
-
-    model = train(train_loader, val_loader, epochs=100, lr=0.0001)
-
-    model = load_model("emojify_model.pth")
-
-    video_emojify(model, emotions)
-
+    # Load trained model
+    model = load_model("emotion_model.pth")
+    # Run real-time inference
+    video_enojify(model)
 
 if __name__ == "__main__":
     main()

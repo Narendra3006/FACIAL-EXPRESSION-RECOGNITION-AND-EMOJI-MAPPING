@@ -1,92 +1,83 @@
-import numpy as np
-import time
 import cv2
 import torch
-from model import EmojifyModel
-from utils import plot_image
+import numpy as np
+from model import EmotionCNN
 
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# Emoji mapping
+emoji_paths = {
+    0: "angry.jpg",
+    1: "disgust.jpg",
+    2: "fear.jpg",
+    3: "happy.jpg",
+    4: "sad.jpg",
+    5: "surprise.jpg",
+    6: "neutral.jpg"
+}
 
-def load_model(model_path='emojify_model.pth'):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    model = EmojifyModel().to(device)
-    model.load_state_dict(torch.load(model_path, map_location=device))
+emotion_labels = {
+    0: "Angry", 1: "Disgust", 2: "Fear",
+    3: "Happy", 4: "Sad", 5: "Surprise", 6: "Neutral"
+}
+
+def load_model(model_path):
+    model = EmotionCNN()
+    model.load_state_dict(torch.load(model_path, map_location=torch.device('cpu')))
     model.eval()
     return model
 
-def detect_and_emojify(img_path, model, emotions):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    img = cv2.imread(img_path)
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    
-    faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
-    
-    if len(faces) == 0:
-        print("No faces detected.")
-        return
+def preprocess_face(face_img):
+    face_img = cv2.resize(face_img, (48, 48))
+    face_tensor = torch.tensor(face_img, dtype=torch.float32).unsqueeze(0).unsqueeze(0) / 255.0
+    return face_tensor
+
+# NEW: returns annotated frame with emoji
+def predict_emotion(frame, model, face_cascade_path="haarcascade_frontalface_default.xml"):
+    face_cascade = cv2.CascadeClassifier(face_cascade_path)
+
+    # Load emojis (cached to global dict)
+    if not hasattr(predict_emotion, "emojis"):
+        predict_emotion.emojis = {}
+        for emotion, path in emoji_paths.items():
+            emoji = cv2.imread(path)
+            if emoji is None:
+                raise FileNotFoundError(f"Emoji not found: {path}")
+            predict_emotion.emojis[emotion] = cv2.resize(emoji, (100, 100))
+
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    emoji_x, emoji_y = 10, 10  # top-left corner for emoji
 
     for (x, y, w, h) in faces:
-        face = cv2.resize(gray[y:y+h, x:x+w], (48, 48))
-        face = np.expand_dims(face, axis=0)
-        face = np.expand_dims(face, axis=0)
-        face_tensor = torch.tensor(face, dtype=torch.float32).to(device)
+        face_roi = gray[y:y+h, x:x+w]
+        face_tensor = preprocess_face(face_roi)
 
         with torch.no_grad():
-            prediction = model(face_tensor)
-            idx = torch.argmax(prediction, dim=1).item()
+            output = model(face_tensor)
+            _, predicted = torch.max(output.data, 1)
+            emotion = predicted.item()
 
-        emoj = cv2.imread(f'{emotions[idx]}.jpg')
-        plot_image(img, emoj)
+        # Overlay emoji
+        emoji = predict_emotion.emojis[emotion]
+        frame[emoji_y:emoji_y+100, emoji_x:emoji_x+100] = emoji
 
-def video_emojify(model, emotions):
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    cap = cv2.VideoCapture(0)
+        # Add label text
+        label = emotion_labels[emotion]
+        text_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+        text_x = emoji_x + (100 - text_size[0]) // 2
+        text_y = emoji_y + 130  # below emoji
 
-    while True:
-        ret, img = cap.read()
-        if not ret:
-            print("Failed to capture video")
-            break
-        
-        img = cv2.resize(img, (256, 256))
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray)
+        # Background for text
+        cv2.rectangle(frame, 
+                      (text_x - 5, text_y - text_size[1] - 5),
+                      (text_x + text_size[0] + 5, text_y + 5),
+                      (0, 0, 0), -1)
 
-        if len(faces) > 0:
-            for (x, y, w, h) in faces:
-                cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2) 
+        # Text label
+        cv2.putText(frame, label, (text_x, text_y),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
 
-                face = cv2.resize(gray[y:y+h, x:x+w], (48, 48))
-                face = np.expand_dims(face, axis=0)
-                face = np.expand_dims(face, axis=0)
-                face_tensor = torch.tensor(face, dtype=torch.float32).to(device)
+        break  # Detect only first face for performance
 
-                with torch.no_grad():
-                    prediction = model(face_tensor)
-                    idx = torch.argmax(prediction, dim=1).item()
-
-                emoj_path = f'{emotions[idx]}.jpg'
-                emoj = cv2.imread(emoj_path)
-
-                if emoj is None:
-                    print(f"Error: Could not load emoji file {emoj_path}")
-                    emoj = np.random.randn(150, 150) 
-                else:
-                    emoj = cv2.resize(emoj, (w, h))
-
-                img[y:y+h, x:x+w] = cv2.addWeighted(img[y:y+h, x:x+w], 0.5, emoj, 0.5, 0)
-
-        #else:
-         #   emoj = cv2.imread('NofaceDetected.jpeg')
-          #  emoj = cv2.resize(emoj, (100, 100)) 
-           # img = cv2.addWeighted(img, 0.5, emoj, 0.5, 0)
-
-        cv2.imshow('Video Emojify', img)
-
-        if cv2.waitKey(1) & 0xFF == 27:
-            break
-
-    cap.release()
-    cv2.destroyAllWindows()
-
+    return frame
 
