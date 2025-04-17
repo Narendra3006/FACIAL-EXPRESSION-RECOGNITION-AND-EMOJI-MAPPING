@@ -26,5 +26,11 @@ Here is a simple result:
 
 =======
 # FACIAL-EXPRESSION-RECOGNITION-AND-EMOJI-MAPPING
-![Uploading result.jpg…]()
+git lfs untrack "![Uploading result.jpg…]()
+"
+git rm --cached "![Uploading result.jpg…]()
+"
+git add . && git commit -m "Remove large file from LFS"
+git push origin main
+
 
