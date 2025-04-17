@@ -26,4 +26,5 @@ Here is a simple result:
 
 =======
 # FACIAL-EXPRESSION-RECOGNITION-AND-EMOJI-MAPPING
->>>>>>> 8015af2cca1fb316840c2ece7afaadd7f229720c
+![Uploading result.jpg…]()
+
